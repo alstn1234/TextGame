@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace TextGame
 {
@@ -14,8 +13,8 @@ namespace TextGame
 
         static void Main(string[] args)
         {
-            // Console.WriteLine("이름을 정해주세요.");
-            //string name = Console.ReadLine();
+            Console.WriteLine("이름을 정해주세요.");
+            string name = Console.ReadLine();
             GameDataSetting("Ko");
             DisplayGameIntro();
         }
@@ -23,7 +22,7 @@ namespace TextGame
         static void GameDataSetting(string name)
         {
             // 캐릭터 정보 세팅
-            player = new Character(name, "전사", 1, 10, 5, 100, 1500);
+            player = new Character(name, "name", 1, 10, 5, 100, 1500);
 
             // 아이템 정보 세팅
             myItemList.Add(ArmorCreate("무쇠갑옷", "무쇠로 만들어져 튼튼한 갑옷입니다.", 5, 0));
@@ -288,27 +287,27 @@ namespace TextGame
                     default:
                         Item item = myItemList[input - 1];
                         // true : Atk, false : Def
-                        bool type; int status;
+                        Pack type; int status;
                         item.GetStatus(out status);
-                        type = item.GetTypeBool();
+                        type = item.GetTypeEnum();
                         if (!item.IsEquip)
                         {
                             item.Equip();
                             //Atk
-                            if (type)
+                            if (type == Pack.Weapon)
                                 extraAtk += status;
                             //Def
-                            else
+                            else if(type == Pack.Armor)
                                 extraDef += status;
                         }
                         else
                         {
                             item.UnEquip();
                             //Atk
-                            if (type)
+                            if (type == Pack.Weapon)
                                 extraAtk -= status;
                             //Def
-                            else
+                            else if (type == Pack.Armor)
                                 extraDef -= status;
                         }
                         break;
@@ -392,9 +391,9 @@ namespace TextGame
         {
             status = 0;
         }
-        public virtual bool GetTypeBool()
+        public virtual Pack GetTypeEnum()
         {
-            return false;
+            return Pack.Unknown;
         }
     }
 
@@ -402,7 +401,7 @@ namespace TextGame
     {
         public Weapon(string name, string dscr, int price, int atk, int def) : base(name, dscr, price, atk, def)
         {
-
+            
         }
         public override void Equip()
         {
@@ -416,10 +415,10 @@ namespace TextGame
         {
             status = Atk;
         }
-        public override bool GetTypeBool()
+        public override Pack GetTypeEnum()
         {
             // true : Atk, false : Def
-            return true;
+            return Pack.Weapon;
         }
 
         public override void PrintItemInfo()
@@ -457,10 +456,9 @@ namespace TextGame
         {
             status = Def;
         }
-        public override bool GetTypeBool()
+        public override Pack GetTypeEnum()
         {
-            // true : Atk, false : Def
-            return false;
+            return Pack.Armor;
         }
         public override void PrintItemInfo()
         {
@@ -477,5 +475,12 @@ namespace TextGame
                 Console.WriteLine(String.Format("{0, -12}| 방어력 +{1,-2} | {2, -30}", Name, Def, Dscr));
            
         }
+    }
+
+   public enum Pack
+    {
+        Weapon,
+        Armor,
+        Unknown
     }
 }
