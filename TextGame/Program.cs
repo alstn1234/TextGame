@@ -1,19 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using ConsoleTables;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace TextGame
 {
     internal class Program
     {
-        private static string[] dungeonName = new []{ "쉬운 던전", "일반 던전", "어려운 던전" };
-        private static int[,] dungeonInfo = new [,]
+        private static string path = Directory.GetParent(System.Environment.CurrentDirectory).Parent.FullName + @"\saves";
+        private static string[] dungeonName = new[] { "쉬운 던전", "일반 던전", "어려운 던전", "극악 던전" };
+        private static int[,] dungeonInfo = new[,]
             {
-                { 5, 1000},
-                {11, 1700 },
-                {17, 2500 }
+                // 0 : 권장 방어력, 2 : 획득 골드, 3 : 획득 경험치
+                { 5, 1000, 108},
+                {11, 1700, 20 },
+                {17, 2500, 30 },
+                {30, 4500, 40 }
             };
         private static string monsterArt = @"
                              __          __          __
@@ -25,32 +31,69 @@ namespace TextGame
 
         private const int dungeonDef = 0;
         private const int dungeonGold = 1;
+        private const int dungeonExp = 2;
         private static Character player;
         private static List<Item> shopItemList;
         private static List<Item> myItemList;
 
         static void Main(string[] args)
         {
-            Console.WriteLine("이름을 정해주세요.");
-            string name = Console.ReadLine();
-            GameDataSetting("Ko");
-            DisplayGameIntro();
+            string name = "";
+            Console.Title = "Sparta Dungeon";
+            if (!File.Exists(path + @"\player"))
+            {
+                Console.WriteLine("이름을 정해주세요.");
+                Console.Write(">> ");
+                name = Console.ReadLine();
+                while (name == "")
+                {
+                    Console.WriteLine("닉네임을 다시 입력주세요.");
+                    Console.Write(">> ");
+                }
+            }
+            GameDataSetting(name);
+            DisplayGameIntro(); /*SetData();*/
         }
-
+        static void SetData()
+        {
+            string _myItemList = JsonConvert.SerializeObject(myItemList.ToArray(), Formatting.Indented);
+            string _shopItemList = JsonConvert.SerializeObject(shopItemList.ToArray(), Formatting.Indented);
+            string _player = JsonConvert.SerializeObject(player, Formatting.Indented);
+            File.WriteAllText(path + @"\myItemList", _myItemList.ToString());
+            File.WriteAllText(path + @"\shopItemList", _shopItemList.ToString());
+            File.WriteAllText(path + @"\player", _player.ToString());
+        }
         static void GameDataSetting(string name)
         {
             // 캐릭터 정보 세팅
-            player = new Character(name, "전사", 1, 10, 5, 100, 15000);
+            if (File.Exists(path + @"\player"))  // 저장된 파일이 있을 경우
+            {
+                string data = File.ReadAllText(path + @"\player");
+                player = JsonConvert.DeserializeObject<Character>(data);
+            }
+            else
+                player = new Character(name, "전사", 1, 10, 5, 100, 1500);
 
             // 아이템 정보 세팅
-            myItemList = new List<Item>{
+            if (File.Exists(path + "@/myItemList"))
+            {
+                string data = File.ReadAllText(path + @"\myItemList");
+                myItemList = JsonConvert.DeserializeObject<List<Item>>(data);
+            }
+            else
+                myItemList = new List<Item>{
                 ArmorCreate("무쇠갑옷", "무쇠로 만들어져 튼튼한 갑옷입니다.", 5, 0),
                 WeaponCreate("낡은 검", "쉽게 볼 수 있는 낡은 검입니다.", 2, 0),
                 WeaponCreate("파리채", "몬스터를 아무리 때려도 죽지 않습니다.", 1, 0),
                 ArmorCreate("비닐갑옷", "비닐로 만들어져 아무 효과도 없습니다.", 1, 0)
             };
+            if (File.Exists(path + "@/shopItemList"))
+            {
+                string data = File.ReadAllText(path + @"\shopItemList");
+                shopItemList = JsonConvert.DeserializeObject<List<Item>>(data);
 
-            shopItemList = new List<Item>
+            }else
+                shopItemList = new List<Item>
             {
                 ArmorCreate("수련자 갑옷", "수련에 도움을 주는 갑옷입니다.", 5, 1000),
                 ArmorCreate("무쇠갑옷", "무쇠로 만들어져 튼튼한 갑옷입니다.", 9, 2000),
@@ -64,36 +107,50 @@ namespace TextGame
 
         static void DisplayGameIntro()
         {
-            Console.Clear();
-            Console.WriteLine();
-            Console.WriteLine("스파르타 마을에 오신 여러분 환영합니다.");
-            Console.WriteLine("이곳에서 던전으로 들어가기 전 활동을 할 수 있습니다.");
-            Console.WriteLine();
-            Console.WriteLine("1. 상태보기");
-            Console.WriteLine("2. 인벤토리");
-            Console.WriteLine("3. 상점");
-            Console.WriteLine("4. 던전");
-            Console.WriteLine();
-            Console.WriteLine("원하시는 행동을 입력해주세요.");
-
-            int input = CheckValidInput(1, 4);
-            switch (input)
+            string msg = "";
+            while (true)
             {
-                case 1:
-                    DisplayMyInfo();
-                    break;
-                case 2:
-                    DisplayInventory();
-                    break;
-                case 3:
-                    DisplayShop();
-                    break;
-                case 4:
-                    DisplayDungeon();
-                    break;
+                Console.Clear();
+                Console.WriteLine();
+                Console.WriteLine("스파르타 마을에 오신 여러분 환영합니다.");
+                Console.WriteLine("이곳에서 던전으로 들어가기 전 활동을 할 수 있습니다.");
+                Console.WriteLine();
+                Console.WriteLine("1. 상태보기");
+                Console.WriteLine("2. 인벤토리");
+                Console.WriteLine("3. 상점");
+                Console.WriteLine("4. 던전");
+                Console.WriteLine("5. 휴식하기");
+                Console.WriteLine("6. 데이터 저장");
+                Console.WriteLine();
+                Console.Write(msg);
+                Console.WriteLine("원하시는 행동을 입력해주세요.");
+                Console.Write(">> ");
+
+                int input = CheckValidInput(1, 6);
+                switch (input)
+                {
+                    case 1:
+                        DisplayMyInfo();
+                        break;
+                    case 2:
+                        DisplayInventory();
+                        break;
+                    case 3:
+                        DisplayShop();
+                        break;
+                    case 4:
+                        DisplayDungeon();
+                        break;
+                    case 5:
+                        DisplayRest();
+                        break;
+                    case 6:
+                        SetData();
+                        msg = "저장이 완료되었습니다.\n\n";
+                        break;
+                }
             }
         }
-
         static void DisplayMyInfo()
         {
             Console.Clear();
@@ -101,7 +158,7 @@ namespace TextGame
             Console.ForegroundColor = ConsoleColor.DarkCyan;
             Console.WriteLine("상태보기");
             Console.ResetColor();
-            Console.WriteLine("캐릭터의 정보르 표시합니다.");
+            Console.WriteLine("캐릭터의 정보를 표시합니다.");
             Console.WriteLine();
             Console.WriteLine($"Lv.{player.Level}");
             Console.WriteLine($"{player.Name}({ player.Job })");
@@ -116,14 +173,59 @@ namespace TextGame
             Console.WriteLine($"체력 : {player.Hp}");
             Console.WriteLine($"Gold : {player.Gold} G");
             Console.WriteLine();
+            Console.WriteLine("1. 닉네임 변경");
             Console.WriteLine("0. 나가기");
+            Console.Write(">> ");
 
-            int input = CheckValidInput(0, 0);
+            int input = CheckValidInput(0, 1);
             switch (input)
             {
                 case 0:
                     DisplayGameIntro();
                     break;
+                case 1:
+                    DisplayChangeName();
+                    break;
+            }
+        }
+        static void DisplayChangeName()
+        {
+            string msg = "";
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.DarkCyan;
+                Console.WriteLine("닉네임 변경");
+                Console.ResetColor();
+                Console.WriteLine("캐릭터의 닉네임을 변경합니다.");
+                Console.WriteLine("닉네임 변경 시 5000G가 차감됩니다.");
+                Console.WriteLine();
+                Console.WriteLine();
+                Console.WriteLine($"현재 닉네임 {player.Name}");
+                Console.WriteLine();
+                Console.WriteLine();
+                Console.WriteLine("0. 나가기");
+                Console.WriteLine();
+                Console.Write(msg);
+                Console.WriteLine("닉네임을 입력해주세요.");
+                Console.Write(">> ");
+                string newName = Console.ReadLine();
+
+                while (newName == "")
+                {
+                    Console.WriteLine("다시 입력해주세요.");
+                    Console.Write(">> ");
+                    player.ChangeName(newName);
+                    player.ChangeGold(-5000);
+                }
+
+                if (newName.Length == 1 && char.IsDigit(newName[0]) && int.Parse(newName) == 0)
+                    DisplayMyInfo();
+
+                if (player.Gold < 5000)
+                    msg = "골드가 부족합니다.\n\n";
+                
             }
         }
         static void DisplayShop()
@@ -152,6 +254,7 @@ namespace TextGame
             Console.WriteLine("0. 나가기");
             Console.WriteLine();
             Console.WriteLine("원하시는 행동을 입력해주세요.");
+            Console.Write(">> ");
 
             int input = CheckValidInput(0, 2);
             switch (input)
@@ -169,6 +272,7 @@ namespace TextGame
         }
         static void DisplayBuyItem()
         {
+            string msg = "";
             while (true)
             {
                 Console.Clear();
@@ -190,10 +294,12 @@ namespace TextGame
                 }
                 table.Write();
                 Console.WriteLine();
+                Console.WriteLine();
                 Console.WriteLine("0. 나가기");
                 Console.WriteLine();
-                Console.WriteLine();
+                Console.WriteLine(msg);
                 Console.WriteLine("원하시는 행동을 입력해주세요.(번호 입력 : 구매)");
+                Console.Write(">> ");
 
                 int input = CheckValidInput(0, shopItemList.Count);
                 switch (input)
@@ -205,12 +311,19 @@ namespace TextGame
                         var item = shopItemList[input - 1];
                         if (item.Price >= 0 && item.Price < player.Gold)
                         {
+                            msg = $"{item.Name} 구매 완료\n";
                             myItemList.Add(item.DeepCopy());
-                            player.BuyItem(item.Price);
+                            player.ChangeGold(-item.Price);
                             item.Buy();
                         }
-                        //else
-                        // 구매 실패
+                        else if (item.Price == -1)
+                        {
+                            msg = $"{item.Name} 는 이미 구매한 아이템입니다.\n";
+                        }
+                        else
+                        {
+                            msg = "골드가 부족합니다.\n";
+                        }
                         break;
                 }
             }
@@ -241,6 +354,7 @@ namespace TextGame
                 Console.WriteLine("0. 나가기");
                 Console.WriteLine();
                 Console.WriteLine("원하시는 행동을 입력해주세요.(번호 입력 : 판매)");
+                Console.Write(">> ");
 
                 int input = CheckValidInput(0, myItemList.Count);
                 switch (input)
@@ -255,7 +369,7 @@ namespace TextGame
                             item.UnEquip();
                             player.UnequipItem(item);
                         }
-                        player.SellItem(item.Price);
+                        player.ChangeGold(item.Price);
                         myItemList.Remove(item);
                         break;
                 }
@@ -286,6 +400,7 @@ namespace TextGame
             Console.WriteLine("0. 나가기");
             Console.WriteLine();
             Console.WriteLine("원하시는 행동을 입력해주세요.");
+            Console.Write(">> ");
 
             int input = CheckValidInput(0, 2);
             switch (input)
@@ -331,6 +446,7 @@ namespace TextGame
                 Console.WriteLine("0. 나가기");
                 Console.WriteLine();
                 Console.WriteLine("원하시는 행동을 입력해주세요.");
+                Console.Write(">> ");
 
                 int input = CheckValidInput(0, 4);
                 switch (input)
@@ -378,6 +494,7 @@ namespace TextGame
                 Console.WriteLine("0. 나가기");
                 Console.WriteLine();
                 Console.WriteLine("원하시는 행동을 입력해주세요.(번호 입력 : 장착 또는 장착해제)");
+                Console.Write(">> ");
 
                 int input = CheckValidInput(0, myItemList.Count);
                 switch (input)
@@ -430,11 +547,13 @@ namespace TextGame
             Console.WriteLine("1. 쉬운 던전      | 방어력 5 이상 권장");
             Console.WriteLine("2. 일반 던전      | 방어력 11 이상 권장");
             Console.WriteLine("3. 어려운 던전    | 방어력 17 이상 권장");
+            Console.WriteLine("4. 극악 던전      | 방어력 30 이상 권장");
             Console.WriteLine("0. 나가기");
             Console.WriteLine();
             Console.WriteLine("원하시는 행동을 입력해주세요.");
+            Console.Write(">> ");
 
-            int input = CheckValidInput(0, 3);
+            int input = CheckValidInput(0, 4);
             switch (input)
             {
                 case 0:
@@ -450,34 +569,41 @@ namespace TextGame
             Random random = new Random();
             int recommendedDefense = dungeonInfo[dungeonNumber - 1, dungeonDef];
             int goldReward = dungeonInfo[dungeonNumber - 1, dungeonGold] *
-                (100 + random.Next(player.GetTotalAtk(), player.GetTotalAtk()*2+1)) / 100;
+                (100 + random.Next(player.GetTotalAtk(), player.GetTotalAtk() * 2 + 1)) / 100;
             int hpLoss = random.Next(20, 35) - player.Def + recommendedDefense;
 
             DungeonExploration();
 
             if ((player.Def < recommendedDefense && random.Next(0, 10) < 4) || hpLoss > player.Hp)
             {
-                    DungeonFail();
+                DungeonFail();
             }
             // 던전 클리어
             else
             {
+                var gainExp = dungeonInfo[dungeonNumber - 1, dungeonExp];
+
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
+                Console.WriteLine("모든 몬스터를 퇴치하였습니다!");
                 Console.WriteLine("던전 클리어");
                 Console.ResetColor();
                 Console.WriteLine();
                 Console.WriteLine("축하합니다!!");
                 Console.WriteLine($"{dungeonName[dungeonNumber - 1]}을 클리어 하였습니다."); Console.WriteLine();
                 Console.WriteLine();
+                player.ChangeExp(gainExp);
                 Console.WriteLine("[탐험 결과]");
+                Console.WriteLine($"{player.Level} Level\nExp {player.Exp}");
                 Console.WriteLine($"체력 {player.Hp} -> {player.Hp - hpLoss}");
                 Console.WriteLine($"Gold {player.Gold} G -> {player.Gold + goldReward} G");
+                Console.WriteLine();
                 Console.WriteLine();
                 Console.WriteLine("0. 나가기");
                 Console.WriteLine();
                 Console.WriteLine("원하시는 행동을 입력해주세요.");
-                player.Hp -= hpLoss;
+                Console.Write(">> ");
+                player.ChangeHp(-hpLoss);
                 player.Gold += goldReward;
                 int input = CheckValidInput(0, 0);
                 DisplayDungeon();
@@ -513,15 +639,60 @@ namespace TextGame
         {
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine("몬스터에게 당했습니다!");
             Console.WriteLine("던전 공략 실패");
             Console.ResetColor();
             Console.WriteLine();
-            Console.WriteLine($"체력 {player.Hp} -> {player.Hp/2}");
+            Console.WriteLine($"체력 {player.Hp} -> {player.Hp / 2}");
+            Console.WriteLine();
             Console.WriteLine();
             Console.WriteLine("0. 나가기");
             player.Hp /= 2;
             int input = CheckValidInput(0, 0);
             DisplayDungeon();
+        }
+        static void DisplayRest()
+        {
+            string msg = "";
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.DarkCyan;
+                Console.WriteLine("휴식하기");
+                Console.ResetColor();
+                Console.WriteLine($"500 G 를 내면 체력을 회복할 수 있습니다. (5~20 랜덤 회복)");
+                Console.WriteLine();
+                Console.WriteLine($"현재 체력 : {player.Hp}\n보유 골드 : {player.Gold} G");
+                Console.WriteLine();
+                Console.WriteLine("1. 휴식하기");
+                Console.WriteLine("0. 나가기");
+                Console.WriteLine();
+                Console.Write(msg);
+                Console.WriteLine("원하시는 행동을 입력해주세요.");
+                Console.Write(">> ");
+
+                int input = CheckValidInput(0, 1);
+                switch (input)
+                {
+                    case 0:
+                        DisplayGameIntro();
+                        break;
+                    case 1:
+                        int extraHp = new Random().Next(5, 20);
+                        if (player.Gold >= 500 && player.Hp < 100)
+                        {
+                            msg = $"휴식을 완료했습니다. 체력 {player.Hp} -> {player.Hp + extraHp}\n\n";
+                            player.ChangeHp(extraHp);
+                            player.ChangeGold(-500);
+                        }
+                        else
+                        {
+                            msg = "골드가 부족하거나 HP가 최대입니다.\n\n";
+                        }
+                        break;
+                }
+            }
         }
 
         static int CheckValidInput(int min, int max)
@@ -538,6 +709,7 @@ namespace TextGame
                 }
 
                 Console.WriteLine("잘못된 입력입니다.");
+                Console.Write(">> ");
             }
         }
 
